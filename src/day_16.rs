@@ -161,6 +161,8 @@ fn are_conflicting_actions(a: &Action, b: &Action, state: &State) -> bool {
     match (a, b) {
         (Action::OpenValve, Action::OpenValve) => state.positions[0] == state.positions[1],
         (Action::MoveTo { dst: dst_a, .. }, Action::MoveTo { dst: dst_b, .. }) => dst_a == dst_b,
+        (Action::OpenValve, Action::MoveTo { dst: dst_b, .. }) => state.positions[0] == *dst_b,
+        (Action::MoveTo { dst: dst_a, .. }, Action::OpenValve) => *dst_a == state.positions[1],
         _ => false,
     }
 }
@@ -207,8 +209,7 @@ impl Context {
             let position = state.positions[agent];
             if !state.open_valves.contains(&position) && self.nodes[position].flow_rate > 0 {
                 actions.push(Action::OpenValve);
-            }
-            if state.open_valves.len() < self.valves_with_non_zero_flow_rate.len() {
+            } else if state.open_valves.len() < self.valves_with_non_zero_flow_rate.len() {
                 for (dst, distances) in self.valves_with_non_zero_flow_rate.iter() {
                     if *dst == position || state.open_valves.contains(dst) {
                         continue;
@@ -223,7 +224,9 @@ impl Context {
                     });
                 }
             }
-            actions.push(Action::Idle);
+            if actions.is_empty() {
+                actions.push(Action::Idle);
+            }
         }
         actions
     }
@@ -352,23 +355,4 @@ Valve JJ has flow rate=21; tunnel leads to valve II
 "#
     .as_bytes();
     assert_eq!(compute_result(buffer), (1651, 1707));
-}
-
-#[test]
-fn example_test_1() {
-    let buffer = r#"Valve AA has flow rate=0; tunnels lead to valves BB
-Valve BB has flow rate=13; tunnels lead to valves AA
-"#
-    .as_bytes();
-    assert_eq!(compute_result(buffer), (364, 312));
-}
-
-#[test]
-fn example_test_2() {
-    let buffer = r#"Valve AA has flow rate=0; tunnels lead to valves BB
-Valve BB has flow rate=13; tunnels lead to valves CC, AA
-Valve CC has flow rate=2; tunnels lead to valves BB
-"#
-    .as_bytes();
-    assert_eq!(compute_result(buffer), (416, 358));
 }
