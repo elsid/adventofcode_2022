@@ -47,18 +47,17 @@ fn find_max_geodes(blueprint: &Blueprint, max_minute: u8) -> u8 {
         for action in actions.iter() {
             let mut new_state = states[state_index].clone();
             apply_action(blueprint, action, &mut new_state);
+            let score = get_score(max_minute, &new_state);
             match visited.entry(make_state_key(&new_state)) {
-                Entry::Occupied(mut v) => {
-                    if get_score(max_minute, &states[*v.get()]) < get_score(max_minute, &new_state)
-                    {
-                        v.insert(states.len());
-                        incomming.push((get_priority(max_minute, &new_state), states.len()));
-                        states.push(new_state);
+                Entry::Occupied(v) => {
+                    if get_score(max_minute, &states[*v.get()]) < score {
+                        incomming.push((score + get_heuristic(max_minute, &new_state), *v.get()));
+                        states[*v.get()] = new_state;
                     }
                 }
                 Entry::Vacant(v) => {
                     v.insert(states.len());
-                    incomming.push((get_priority(max_minute, &new_state), states.len()));
+                    incomming.push((score + get_heuristic(max_minute, &new_state), states.len()));
                     states.push(new_state);
                 }
             }
@@ -68,14 +67,13 @@ fn find_max_geodes(blueprint: &Blueprint, max_minute: u8) -> u8 {
 }
 
 fn get_score(max_minute: u8, state: &State) -> u64 {
-    state.geodes as u64 + (max_minute - state.minute) as u64
+    let duration = (max_minute - state.minute) as u64;
+    state.geodes as u64 + state.geode_robots as u64 * duration
 }
 
-fn get_priority(max_minute: u8, state: &State) -> u64 {
+fn get_heuristic(max_minute: u8, state: &State) -> u64 {
     let duration = (max_minute - state.minute) as u64;
-    let geodes = state.geodes as u64 + state.geode_robots as u64 * duration;
-    let potential_geodes = duration * (duration + 1) / 2;
-    geodes + potential_geodes
+    duration * (duration + 1) / 2
 }
 
 fn apply_action(blueprint: &Blueprint, action: &Action, state: &mut State) {
@@ -203,7 +201,7 @@ struct GeodeRobotCost {
     obsidian: u8,
 }
 
-#[derive(Default, Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Default, Debug, Clone)]
 struct State {
     minute: u8,
     ore: u8,
@@ -216,7 +214,7 @@ struct State {
     geode_robots: u8,
 }
 
-#[derive(Default, Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Clone)]
+#[derive(Default, Debug, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 struct StateKey {
     ore: u8,
     clay: u8,
