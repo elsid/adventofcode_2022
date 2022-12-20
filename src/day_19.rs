@@ -1,3 +1,4 @@
+use std::cmp::Reverse;
 use std::collections::hash_map::Entry;
 use std::collections::{BinaryHeap, HashMap};
 use std::io::BufRead;
@@ -33,10 +34,10 @@ fn find_max_geodes(blueprint: &Blueprint, max_minute: u8) -> u8 {
     visited.insert(make_state_key(&initial_state), 0);
     let mut states = vec![initial_state];
     let mut incomming = BinaryHeap::new();
-    incomming.push((0, 0));
+    incomming.push((Reverse(0), 0));
     let mut actions = Vec::new();
     let mut iterations = 0;
-    while let Some((_, state_index)) = incomming.pop() {
+    while let Some((Reverse(_), state_index)) = incomming.pop() {
         if states[state_index].minute == max_minute {
             return states[state_index].geodes;
         }
@@ -47,17 +48,23 @@ fn find_max_geodes(blueprint: &Blueprint, max_minute: u8) -> u8 {
         for action in actions.iter() {
             let mut new_state = states[state_index].clone();
             apply_action(blueprint, action, &mut new_state);
-            let score = get_score(max_minute, &new_state);
+            let cost = get_cost(&new_state);
             match visited.entry(make_state_key(&new_state)) {
                 Entry::Occupied(v) => {
-                    if get_score(max_minute, &states[*v.get()]) < score {
-                        incomming.push((score + get_heuristic(max_minute, &new_state), *v.get()));
+                    if get_cost(&states[*v.get()]) > cost {
+                        incomming.push((
+                            Reverse(cost + get_heuristic(max_minute, &new_state)),
+                            *v.get(),
+                        ));
                         states[*v.get()] = new_state;
                     }
                 }
                 Entry::Vacant(v) => {
                     v.insert(states.len());
-                    incomming.push((score + get_heuristic(max_minute, &new_state), states.len()));
+                    incomming.push((
+                        Reverse(cost + get_heuristic(max_minute, &new_state)),
+                        states.len(),
+                    ));
                     states.push(new_state);
                 }
             }
@@ -66,14 +73,28 @@ fn find_max_geodes(blueprint: &Blueprint, max_minute: u8) -> u8 {
     unreachable!();
 }
 
-fn get_score(max_minute: u8, state: &State) -> u64 {
-    let duration = (max_minute - state.minute) as u64;
-    state.geodes as u64 + state.geode_robots as u64 * duration
+fn get_cost(state: &State) -> i64 {
+    let theoretical_geodes_gathered = sum_from_1_to_n_minus_one(state.minute as i64);
+    theoretical_geodes_gathered - state.geodes as i64
 }
 
-fn get_heuristic(max_minute: u8, state: &State) -> u64 {
-    let duration = (max_minute - state.minute) as u64;
-    duration * (duration + 1) / 2
+fn get_heuristic(max_minute: u8, state: &State) -> i64 {
+    let theoretical_geodes_max = sum_from_1_to_n_minus_one(max_minute as i64);
+    let theoretical_geodes_gathered = sum_from_1_to_n_minus_one(state.minute as i64);
+    let time_left = (max_minute - state.minute) as i64;
+    let theoretical_geodes_to_be_gathered = sum_from_1_to_n_minus_one(time_left);
+    theoretical_geodes_max
+        - theoretical_geodes_gathered
+        - theoretical_geodes_to_be_gathered
+        - state.geode_robots as i64 * time_left
+}
+
+fn sum_from_1_to_n_minus_one(n: i64) -> i64 {
+    if n > 0 {
+        n * (n - 1) / 2
+    } else {
+        0
+    }
 }
 
 fn apply_action(blueprint: &Blueprint, action: &Action, state: &mut State) {
