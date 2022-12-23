@@ -92,5 +92,9 @@ path = "src/day_21.rs"
 name = "day_22"
 path = "src/day_22.rs"
 
+[[bin]]
+name = "day_23"
+path = "src/day_23.rs"
+
 [dependencies]
 serde_json = "1.0"
