@@ -33,11 +33,11 @@ fn find_max_geodes(blueprint: &Blueprint, max_minute: u8) -> u8 {
     let mut visited = HashMap::<StateKey, usize>::new();
     visited.insert(make_state_key(&initial_state), 0);
     let mut states = vec![initial_state];
-    let mut incomming = BinaryHeap::new();
-    incomming.push((Reverse(0), 0));
+    let mut incoming = BinaryHeap::new();
+    incoming.push((Reverse(0), 0));
     let mut actions = Vec::new();
     let mut iterations = 0;
-    while let Some((Reverse(_), state_index)) = incomming.pop() {
+    while let Some((Reverse(_), state_index)) = incoming.pop() {
         if states[state_index].minute == max_minute {
             return states[state_index].geodes;
         }
@@ -52,7 +52,7 @@ fn find_max_geodes(blueprint: &Blueprint, max_minute: u8) -> u8 {
             match visited.entry(make_state_key(&new_state)) {
                 Entry::Occupied(v) => {
                     if get_cost(&states[*v.get()]) > cost {
-                        incomming.push((
+                        incoming.push((
                             Reverse(cost + get_heuristic(max_minute, &new_state)),
                             *v.get(),
                         ));
@@ -61,7 +61,7 @@ fn find_max_geodes(blueprint: &Blueprint, max_minute: u8) -> u8 {
                 }
                 Entry::Vacant(v) => {
                     v.insert(states.len());
-                    incomming.push((
+                    incoming.push((
                         Reverse(cost + get_heuristic(max_minute, &new_state)),
                         states.len(),
                     ));
